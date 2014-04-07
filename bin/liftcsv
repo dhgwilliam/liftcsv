@@ -1,0 +1,15 @@
+#!/bin/env ruby
+
+require 'slop'
+require 'lift'
+
+
+opts = Slop.parse do
+  banner 'Usage: liftcsv [options]'
+
+  on 'd', 'data=', 'path to your lift.do csv'
+end
+
+lift = Lift.new(:data => opts[:data])
+puts lift.parse_habits.map {|h| 
+  "#{h.sparkline(:lift => lift)} :: #{h.name} (#{h.count})"}
