@@ -23,3 +23,11 @@ setup
 2. drop your [lift.do](https://lift.do) csv in the data directory
     - as of right now, the lib expects exactly one csv in the data dir
 3. see [usage](#usage)
+
+
+todo
+---
+
+- add `bin/lift` tool for interacting with lib
+- package as gem
+- allow user to specify location of csv
