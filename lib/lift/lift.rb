@@ -4,11 +4,20 @@ require 'sparkr'
 class Lift
   @@datadir = './data'
 
-  def initialize
-    csv = Dir.new('data').entries.select {|file|
-      file.match(/\.csv$/) }.first
-    @checkins = CSV.read(File.join(@@datadir, csv)).select {|c|
-      c[0] != "Id" }.map{|c| LiftCheckin.new :obj => c}
+  def initialize(args = {})
+    if File.exist?(args[:data])
+      csv_path = args[:data]
+    else
+      csv = Dir.new('data').entries.select {|file|
+        file.match(/\.csv$/) }.first
+      csv_path = File.join(@@datadir, csv)
+    end
+    begin
+      @checkins = CSV.read(csv_path).select {|c|
+        c[0] != "Id" }.map{|c| LiftCheckin.new :obj => c}
+    rescue => e
+      "Error: #{e}"
+    end
   end
 
   def checkins
