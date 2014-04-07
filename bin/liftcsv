@@ -10,6 +10,11 @@ opts = Slop.parse do
   on 'd', 'data=', 'path to your lift.do csv'
 end
 
-lift = Lift.new(:data => opts[:data])
+if opts[:data]
+  lift = Lift.new(:data => opts[:data])
+else
+  lift = Lift.new
+end
+
 puts lift.parse_habits.map {|h| 
   "#{h.sparkline(:lift => lift)} :: #{h.name} (#{h.count})"}

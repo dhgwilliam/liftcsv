@@ -5,7 +5,7 @@ class Lift
   @@datadir = './data'
 
   def initialize(args = {})
-    if File.exist?(args[:data])
+    if args[:data] and File.exist?(args[:data])
       csv_path = args[:data]
     else
       csv = Dir.new('data').entries.select {|file|
