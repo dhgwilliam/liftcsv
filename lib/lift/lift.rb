@@ -1,39 +1,43 @@
 require 'csv'
 require 'sparkr'
+require 'pry'
 
 class Lift
-  @@datadir = './data'
+  @datadir = './data'
 
-  def initialize(args = {})
-    if args[:data] and File.exist?(args[:data])
-      csv_path = args[:data]
-    else
-      csv = Dir.new('data').entries.select {|file|
-        file.match(/\.csv$/) }.first
-      csv_path = File.join(@@datadir, csv)
-    end
-    begin
-      @checkins = CSV.read(csv_path).select {|c|
-        c[0] != "Id" }.map{|c| LiftCheckin.new :obj => c}
-    rescue => e
-      "Error: #{e}"
-    end
+  class << self
+    attr_reader :datadir
   end
 
-  def checkins
-    @checkins
+  attr_reader :checkins
+
+  def initialize(args = {})
+    @csv_path = if args[:data] && File.exist?(args[:data])
+                  args[:data]
+                else
+                  File.expand_path(Dir.glob('**/*.csv').first)
+                end
+
+    @checkins = read_csv.select { |checkin| !checkin.date.nil? }
+  end
+
+  def read_csv
+    data = CSV.read(@csv_path).select { |col| col[0] != 'Id' }
+    data.map { |line| LiftCheckin.new(obj: line) }
+  rescue StandardError => e
+    abort "Error: #{e}"
   end
 
   def parse_habits
-    habits = @checkins.inject({}) {|a,c|
+    habits = checkins.each_with_object({}) do |c, a|
       a[c.habit] = [] unless a[c.habit]
       a[c.habit] << c
-      a }
-    habits.map {|h,checkins|
-      habit = LiftHabit.new(:habit => h)
-      checkins.each {|c|
-        habit.add_checkin(:checkin => c)}
-      habit }
+    end
+    habits.map do |h, checkins|
+      habit = LiftHabit.new(habit: h)
+      checkins.each { |c| habit.add_checkin(checkin: c) }
+      habit
+    end
   end
 
   def habits
@@ -41,11 +45,11 @@ class Lift
   end
 
   def start_date
-    checkins.sort_by {|c| c.date}.first.date
+    checkins.sort_by(&:date).first.date
   end
 
   def end_date
-    checkins.sort_by {|c| c.date}.last.date
+    checkins.sort_by(&:date).last.date
   end
 
   def week_hash
@@ -57,9 +61,7 @@ class Lift
         week = "0#{week}" if week < 10
         week_bucket = "#{year}-#{week}"
         unless Date.strptime(week_bucket, '%Y-%W') > DateTime.now
-          week_h.merge!({ 
-             week_bucket => 0
-          })
+          week_h.merge!(week_bucket => 0)
         end
       end
       start_week = 1
@@ -68,13 +70,12 @@ class Lift
   end
 end
 
-
 class LiftCheckin
-  attr_reader :id, 
-              :habit, 
-              :date, 
-              :note, 
-              :count, 
+  attr_reader :id,
+              :habit,
+              :date,
+              :note,
+              :count,
               :streak_days,
               :prop_count,
               :comment_count,
@@ -90,6 +91,8 @@ class LiftCheckin
     @prop_count    = args[:obj][6]
     @comment_count = args[:obj][7]
     @url           = args[:obj][8]
+  rescue
+    nil
   end
 end
 
@@ -102,21 +105,20 @@ class LiftHabit
   end
 
   def count
-    @checkins.count
+    checkins.count
   end
 
   def add_checkin(args)
-    @checkins << args[:checkin]
+    checkins << args[:checkin]
   end
 
   def sparkline(args = {})
-    per_week = @checkins.inject(args[:lift].week_hash) {|a,c|
+    per_week = checkins.each_with_object(args[:lift].week_hash) do |c, a|
       year_week = c.date.cweek < 10 ? "0#{c.date.cweek}" : c.date.cweek
       week_bucket = "#{c.date.year}-#{year_week}"
       a[week_bucket] = a[week_bucket] + 1
-      a
-    }
-    per_week = Hash[*per_week.sort_by {|k,v| k}.flatten]
+    end
+    per_week = Hash[*per_week.sort_by { |k, _v| k }.flatten]
     Sparkr.sparkline(per_week.values)
   end
 end
